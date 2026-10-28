@@ -10,6 +10,10 @@ const KEYS = {
   holdings: "s30.holdings.v1",
   profile: "s30.profile.v1",
   snapshot: "s30.snapshot.v1",
+  stateUpdated: "s30.state.updated_at",
+  stateUpdatedMs: "s30.state.updated_at_ms",
+  sessionPass: "s30.session_pass",
+  pendingToast: "s30.pending_toast",
 };
 
 const BUNDLE_URL = "./secure_app.json";
@@ -57,6 +61,50 @@ function writeStore(key, value) {
   } catch {
     /* private mode: unlock still works for this session */
   }
+}
+
+function readSession(key) {
+  try {
+    return window.sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeSession(key, value) {
+  try {
+    if (value === null || value === undefined || value === "") {
+      window.sessionStorage.removeItem(key);
+    } else {
+      window.sessionStorage.setItem(key, String(value));
+    }
+  } catch {
+    /* private mode */
+  }
+}
+
+function parseTimestamp(value) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.length > 0) {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+}
+
+function formatTime(value) {
+  const stamp = parseTimestamp(value);
+  if (!stamp) return "刚刚";
+  return new Intl.DateTimeFormat("zh-CN", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).format(new Date(stamp));
 }
 
 function base64ToBytes(value) {
@@ -131,7 +179,7 @@ async function decryptEnvelope(envelope, passphrase) {
 async function fetchJSON(url) {
   let response;
   try {
-    response = await fetch(`${url}?ts=${Date.now()}`, { cache: "no-store" });
+    response = await fetch(`${url}?_t=${Date.now()}`, { cache: "no-store" });
   } catch {
     throw new UnlockError("网络不可用，无法读取加密包。", "network");
   }
@@ -146,6 +194,7 @@ async function fetchJSON(url) {
 }
 
 function rememberPassphrase(passphrase, remember) {
+  writeSession(KEYS.sessionPass, passphrase);
   if (remember) {
     writeStore(KEYS.pass, passphrase);
     writeStore(KEYS.remember, "1");
@@ -156,16 +205,32 @@ function rememberPassphrase(passphrase, remember) {
 }
 
 function applyState(payload, passphrase, remember) {
-  if (!payload || typeof payload !== "object" || !payload.holdings) return false;
-  try {
+  if (!payload || typeof payload !== "object" || !payload.holdings) {
+    return { applied: false, updatedAt: 0 };
+  }
+  const cloudAt =
+    Number(payload.updated_at_ms) ||
+    parseTimestamp(payload.updated_at || payload.generated_at) ||
+    0;
+  const localAt =
+    Number(readStore(KEYS.stateUpdatedMs)) ||
+    parseTimestamp(readStore(KEYS.stateUpdated)) ||
+    0;
+  const hasLocal = Boolean(readStore(KEYS.holdings)) || Boolean(readStore(KEYS.snapshot));
+  const shouldApply = !hasLocal || cloudAt > localAt;
+
+  if (shouldApply) {
     writeStore(KEYS.holdings, JSON.stringify(payload.holdings));
-    writeStore(KEYS.profile, payload.risk_profile === "balanced" ? "balanced" : "conservative");
+    writeStore(
+      KEYS.profile,
+      payload.risk_profile === "balanced" ? "balanced" : "conservative",
+    );
     writeStore(KEYS.snapshot, JSON.stringify(payload));
-  } catch {
-    /* memory-only unlock */
+    writeStore(KEYS.stateUpdated, payload.updated_at || payload.generated_at || "");
+    writeStore(KEYS.stateUpdatedMs, String(cloudAt));
   }
   rememberPassphrase(passphrase, remember);
-  return true;
+  return { applied: shouldApply, updatedAt: cloudAt };
 }
 
 function injectApp(bundle) {
@@ -197,15 +262,21 @@ async function unlock(passphrase, remember, { auto = false } = {}) {
     const bundleEnvelope = await fetchJSON(BUNDLE_URL);
     const bundle = await decryptEnvelope(bundleEnvelope, passphrase);
 
-    let stateDecrypted = false;
+    let stateResult = { applied: false, updatedAt: 0 };
     try {
       const stateEnvelope = await fetchJSON(STATE_URL);
       const payload = await decryptEnvelope(stateEnvelope, passphrase);
-      stateDecrypted = applyState(payload, passphrase, remember);
+      stateResult = applyState(payload, passphrase, remember);
     } catch {
       /* No state yet: still unlock, using this device's saved snapshot. */
     }
-    if (!stateDecrypted) rememberPassphrase(passphrase, remember);
+    if (!stateResult.applied) rememberPassphrase(passphrase, remember);
+    if (stateResult.applied) {
+      writeSession(
+        KEYS.pendingToast,
+        `✅ 已自动同步最新云端账本 (${formatTime(stateResult.updatedAt)})`,
+      );
+    }
 
     injectApp(bundle);
   } catch (error) {

@@ -40,11 +40,6 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
   const url = new URL(request.url);
 
-  if (url.pathname.endsWith("/encrypted_state.json")) {
-    event.respondWith(fetch(request, { cache: "no-store" }));
-    return;
-  }
-
   if (url.origin === self.location.origin) {
     event.respondWith(
       fetch(request)
