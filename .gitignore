@@ -1,0 +1,6 @@
+.sync_pass
+**/.sync_pass
+*.key
+*.pem
+.env
+.env.*
