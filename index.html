@@ -133,7 +133,7 @@
   .action-list .buy { color: var(--jade); }
   .action-list .sell { color: var(--coral); }
   .cash-line { margin: 12px 0 0; color: var(--mist); font-size: 11.5px; line-height: 1.7; }
-  .holdings-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .holdings-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
   .holding { padding: 11px 10px; border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; background: rgba(255, 255, 255, 0.022); }
   .holding .label { color: var(--mist-2); font-size: 9.5px; }
   .holding .value { margin-top: 4px; font-family: var(--mono); font-size: 14px; color: var(--paper); word-break: break-all; }
@@ -287,8 +287,9 @@
       </div>
       <div class="holdings-grid">
         <div class="holding"><div class="label">USDT 现金</div><div class="value" id="usdtValue">--</div><div class="sub">活期理财</div></div>
-        <div class="holding"><div class="label">BTC 市值</div><div class="value" id="btcValue">--</div><div class="sub" id="btcQty">-- BTC</div></div>
+        <div class="holding"><div class="label">QQQM 纳指100</div><div class="value" id="qqqmValue">--</div><div class="sub" id="qqqmQty">-- QQQM</div></div>
         <div class="holding"><div class="label">PAXG 市值</div><div class="value" id="paxgValue">--</div><div class="sub" id="paxgQty">-- PAXG</div></div>
+        <div class="holding"><div class="label">BTC 市值</div><div class="value" id="btcValue">--</div><div class="sub" id="btcQty">-- BTC</div></div>
       </div>
     </section>
 
@@ -304,6 +305,7 @@
         <div class="row"><span class="k">信号锁定时间</span><span class="v" id="signalLockedAt">--</span></div>
         <div class="row"><span class="k">行情抓取时间</span><span class="v" id="fetchedAt">--</span></div>
         <div class="row"><span class="k">风险档位</span><span class="v" id="riskProfile">--</span></div>
+        <div class="row"><span class="k">策略模式</span><span class="v" id="modeLabel">--</span></div>
         <div class="row"><span class="k">实时盘口</span><span class="v" id="quotePrices">--</span></div>
         <div class="row"><span class="k">账本版本</span><span class="v" id="schema">--</span></div>
       </div>
@@ -375,12 +377,15 @@
     usdtValue: $("usdtValue"),
     btcValue: $("btcValue"),
     paxgValue: $("paxgValue"),
+    qqqmValue: $("qqqmValue"),
     btcQty: $("btcQty"),
     paxgQty: $("paxgQty"),
+    qqqmQty: $("qqqmQty"),
     generatedAt: $("generatedAt"),
     signalLockedAt: $("signalLockedAt"),
     fetchedAt: $("fetchedAt"),
     riskProfile: $("riskProfile"),
+    modeLabel: $("modeLabel"),
     quotePrices: $("quotePrices"),
     schema: $("schema"),
     backdrop: $("backdrop"),
@@ -534,8 +539,11 @@
     setText(el.usdtValue, money(holdings.usdt_cash));
     setText(el.btcValue, money(holdings.btc_value));
     setText(el.paxgValue, money(holdings.paxg_value));
+    setText(el.qqqmValue, money(holdings.qqqm_value));
     setText(el.btcQty, holdings.btc_qty == null ? "颗粒度未知" : `${num(holdings.btc_qty, 8)} BTC`);
     setText(el.paxgQty, holdings.paxg_qty == null ? "颗粒度未知" : `${num(holdings.paxg_qty, 8)} PAXG`);
+    setText(el.qqqmQty, holdings.qqqm_qty == null ? "颗粒度未知" : `${num(holdings.qqqm_qty, 8)} QQQM`);
+    setText(el.modeLabel, payload.mode_label || "原版币安加密档");
 
     const summary = signal.summary || "电脑端尚未生成信号。";
     setText(el.summary, summary);
@@ -576,6 +584,7 @@
     const quoteText = [
       quotes.BTCUSDT ? `BTC ${money(quotes.BTCUSDT)}` : null,
       quotes.PAXGUSDT ? `PAXG ${money(quotes.PAXGUSDT)}` : null,
+      quotes.QQQM ? `QQQM ${money(quotes.QQQM)}` : null,
     ].filter(Boolean).join(" · ");
     setText(el.quotePrices, quoteText || "未提供");
     setText(el.schema, `schema ${payload.schema ?? "?"} · ${valuation.quote_source || "unknown"}`);
