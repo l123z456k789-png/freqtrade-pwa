@@ -478,7 +478,10 @@
     setText(el.unlockHint, message);
     el.unlockHint.className = "hint" + (message ? " is-error" : "");
     el.unlockCopy.innerHTML = '输入电脑端 <code>.sync_pass</code> 里的 4-8 位短码。短码只保存在本机，不会上传。';
-    window.setTimeout(() => el.passInput.focus({ preventScroll: true }), 180);
+    window.setTimeout(() => {
+      el.passInput.focus({ preventScroll: true });
+      el.unlockCard.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 180);
   }
   function hideUnlock() {
     el.unlockCard.hidden = true;
@@ -536,7 +539,7 @@
 
     const summary = signal.summary || "电脑端尚未生成信号。";
     setText(el.summary, summary);
-    el.summary.classList.toggle("is-warn", /不动|暂停|失败|未知/.test(summary));
+    el.summary.classList.toggle("is-warn", /暂停|失败|未知|无法|错误/.test(summary));
     const actions = Array.isArray(signal.actions) ? signal.actions : [];
     el.actionList.replaceChildren();
     if (!actions.length) {
