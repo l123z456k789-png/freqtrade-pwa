@@ -1,8 +1,9 @@
 {
-  "name": "私人账本",
-  "short_name": "账本",
-  "description": "Encrypted private ledger. Passphrase required.",
+  "name": "30U 金库 · 加密账本",
+  "short_name": "30U 金库",
+  "description": "只读的个人持仓账本：单文件 PWA，云端只存放 AES-256-GCM 加密状态。",
   "lang": "zh-CN",
+  "dir": "ltr",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

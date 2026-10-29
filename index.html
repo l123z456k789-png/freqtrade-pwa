@@ -1,219 +1,779 @@
 <!doctype html>
 <html lang="zh-CN">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#080b09" />
-    <meta name="color-scheme" content="dark" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="私人账本" />
-    <meta name="robots" content="noindex, nofollow" />
-    <meta name="description" content="Encrypted private ledger. Passphrase required." />
-    <title>私人账本</title>
-    <link rel="manifest" href="./manifest.json" />
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
-    <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
-    <style>
-      :root {
-        color-scheme: dark;
-        --ink: #080b09;
-        --gold: #d8b46a;
-        --gold-hi: #f3dfae;
-        --gold-lo: #8a6a32;
-        --paper: #f1ead9;
-        --mist: #9aa69c;
-        --mist-2: #6f7c72;
-        --line: rgba(216, 180, 106, 0.18);
-        --serif: "Songti SC", "Noto Serif CJK SC", "STSong", "SimSun", Georgia, serif;
-        --sans: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
-        --mono: "SFMono-Regular", "Cascadia Mono", "Roboto Mono", Consolas, monospace;
-      }
-      * { box-sizing: border-box; }
-      html { background: var(--ink); -webkit-text-size-adjust: 100%; }
-      body {
-        margin: 0;
-        min-height: 100dvh;
-        display: grid;
-        place-items: center;
-        padding: calc(24px + env(safe-area-inset-top)) 20px calc(24px + env(safe-area-inset-bottom));
-        background:
-          radial-gradient(90% 60% at 50% -10%, rgba(216, 180, 106, 0.14), transparent 62%),
-          radial-gradient(70% 45% at 50% 110%, rgba(104, 201, 155, 0.05), transparent 65%),
-          var(--ink);
-        color: var(--paper);
-        font-family: var(--sans);
-        -webkit-font-smoothing: antialiased;
-      }
-      .gate {
-        position: relative;
-        width: 100%;
-        max-width: 360px;
-        padding: 30px 24px 22px;
-        border: 1px solid var(--line);
-        border-radius: 26px;
-        background:
-          linear-gradient(158deg, rgba(255, 255, 255, 0.03), transparent 46%),
-          linear-gradient(160deg, #151d16, #0d130f);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 30px 80px rgba(0, 0, 0, 0.55);
-        text-align: center;
-      }
-      .gate::before {
-        content: "";
-        position: absolute;
-        inset: -1px;
-        border-radius: inherit;
-        pointer-events: none;
-        background: radial-gradient(55% 30% at 50% 0%, rgba(216, 180, 106, 0.1), transparent 70%);
-      }
-      .lock {
-        position: relative;
-        width: 82px;
-        height: 82px;
-        margin: 0 auto 18px;
-        color: var(--gold);
-        filter: drop-shadow(0 0 22px rgba(216, 180, 106, 0.18));
-      }
-      .lock::before,
-      .lock::after {
-        content: "";
-        position: absolute;
-        inset: 0;
-        border: 1px solid rgba(216, 180, 106, 0.16);
-        border-radius: 50%;
-      }
-      .lock::before { inset: -10px; }
-      .lock::after { inset: -20px; opacity: 0.5; }
-      .lock svg { position: relative; width: 100%; height: 100%; }
-      .eyebrow {
-        margin: 0;
-        color: var(--gold-lo);
-        font-family: var(--mono);
-        font-size: 9px;
-        letter-spacing: 0.2em;
-      }
-      h1 {
-        margin: 9px 0 7px;
-        font-family: var(--serif);
-        font-size: 27px;
-        font-weight: 500;
-        letter-spacing: 0.04em;
-        color: var(--gold-hi);
-      }
-      .hint {
-        margin: 0 auto;
-        max-width: 280px;
-        color: var(--mist);
-        font-size: 11.5px;
-        line-height: 1.7;
-      }
-      form { margin-top: 20px; text-align: left; }
-      .field {
-        display: block;
-        margin-bottom: 10px;
-      }
-      .field span {
-        display: block;
-        margin: 0 0 6px 2px;
-        color: var(--gold-lo);
-        font-family: var(--mono);
-        font-size: 9px;
-        letter-spacing: 0.1em;
-      }
-      input[type="password"] {
-        width: 100%;
-        height: 50px;
-        padding: 0 14px;
-        border: 1px solid rgba(216, 180, 106, 0.18);
-        border-radius: 13px;
-        background: rgba(6, 10, 7, 0.72);
-        color: var(--paper);
-        font-family: var(--sans);
-        font-size: 15px;
-        outline: none;
-      }
-      input[type="password"]:focus {
-        border-color: var(--gold);
-        box-shadow: 0 0 0 3px rgba(216, 180, 106, 0.08);
-      }
-      .remember {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin: 4px 0 14px;
-        color: var(--mist);
-        font-size: 10.5px;
-        cursor: pointer;
-      }
-      .remember input { width: 15px; height: 15px; accent-color: var(--gold); }
-      .unlock-button {
-        width: 100%;
-        min-height: 48px;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 13px;
-        background: linear-gradient(180deg, #f5e2b2 0%, #dfb76e 38%, #c29445 100%);
-        color: #211708;
-        font-family: var(--sans);
-        font-size: 13px;
-        font-weight: 700;
-        letter-spacing: 0.06em;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 10px 26px rgba(184, 137, 59, 0.16);
-        cursor: pointer;
-      }
-      .unlock-button:active { transform: translateY(1px); }
-      .unlock-button:disabled { opacity: 0.55; cursor: wait; }
-      .status {
-        min-height: 30px;
-        margin: 12px 0 0;
-        color: var(--mist-2);
-        font-size: 10.5px;
-        line-height: 1.6;
-        text-align: center;
-      }
-      .status.is-error { color: #e0705f; }
-      .status.is-ok { color: #68c99b; }
-      .foot {
-        margin: 12px 0 0;
-        color: var(--mist-2);
-        font-family: var(--mono);
-        font-size: 8px;
-        letter-spacing: 0.06em;
-      }
-      @media (prefers-reduced-motion: reduce) {
-        * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
-      }
-    </style>
-  </head>
-  <body>
-    <main class="gate">
-      <div class="lock" aria-hidden="true">
-        <svg viewBox="0 0 64 64" fill="none">
-          <circle cx="32" cy="32" r="29" stroke="currentColor" stroke-width="1.2" opacity="0.55" />
-          <circle cx="32" cy="32" r="24" stroke="currentColor" stroke-width="0.7" opacity="0.3" />
-          <rect x="19" y="29" width="26" height="20" rx="5" stroke="currentColor" stroke-width="1.8" />
-          <path d="M24.5 29v-5.5a7.5 7.5 0 0 1 15 0V29" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-          <circle cx="32" cy="38" r="2.6" fill="currentColor" />
-          <path d="M32 40.5V45" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-        </svg>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#080b09">
+<meta name="color-scheme" content="dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="30U 金库">
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="Personal encrypted holdings dashboard. Read-only.">
+<title>30U 金库 · 加密账本</title>
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+<style>
+  :root {
+    color-scheme: dark;
+    --ink: #080b09;
+    --panel: #101712;
+    --panel-2: #151f18;
+    --gold: #d8b46a;
+    --gold-hi: #f3dfae;
+    --gold-lo: #8a6a32;
+    --paper: #f1ead9;
+    --mist: #9aa69c;
+    --mist-2: #6f7c72;
+    --jade: #68c99b;
+    --coral: #e0705f;
+    --amber: #e3b65c;
+    --line: rgba(216, 180, 106, 0.18);
+    --serif: "Songti SC", "Noto Serif CJK SC", "STSong", "SimSun", Georgia, serif;
+    --sans: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+    --mono: "SFMono-Regular", "Cascadia Mono", "Roboto Mono", Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--ink); -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    background:
+      radial-gradient(90% 55% at 50% -10%, rgba(216, 180, 106, 0.13), transparent 62%),
+      radial-gradient(70% 40% at 50% 110%, rgba(104, 201, 155, 0.05), transparent 65%),
+      var(--ink);
+    color: var(--paper);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  .app { width: 100%; max-width: 560px; margin: 0 auto; padding: 0 16px calc(30px + env(safe-area-inset-bottom)); }
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: calc(14px + env(safe-area-inset-top)) 0 12px;
+    background: linear-gradient(180deg, rgba(8, 11, 9, 0.96) 70%, rgba(8, 11, 9, 0));
+    backdrop-filter: blur(12px);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .logo {
+    width: 38px; height: 38px; flex: 0 0 38px;
+    display: grid; place-items: center;
+    border: 1px solid var(--line); border-radius: 50%;
+    color: var(--gold); font-family: var(--serif); font-size: 15px;
+    box-shadow: inset 0 0 18px rgba(216, 180, 106, 0.06);
+  }
+  h1 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: 0.06em; color: var(--gold-hi); }
+  .brand p { margin: 2px 0 0; color: var(--mist-2); font-family: var(--mono); font-size: 8px; letter-spacing: 0.12em; }
+  .top-actions { display: flex; gap: 8px; }
+  .icon-btn {
+    width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 12px;
+    background: rgba(16, 23, 18, 0.8); color: var(--paper); font-size: 17px;
+    cursor: pointer;
+  }
+  .icon-btn:active { transform: translateY(1px); }
+  .icon-btn:disabled { opacity: 0.5; cursor: wait; }
+  .status-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 2px 0 12px; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    min-height: 28px; padding: 4px 10px;
+    border: 1px solid var(--line); border-radius: 999px;
+    background: rgba(16, 23, 18, 0.85);
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.02em;
+  }
+  .pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--mist-2); }
+  .pill.is-online { color: var(--jade); border-color: rgba(104, 201, 155, 0.28); }
+  .pill.is-online::before { background: var(--jade); box-shadow: 0 0 8px rgba(104, 201, 155, 0.7); }
+  .pill.is-offline { color: var(--coral); border-color: rgba(224, 112, 95, 0.3); }
+  .pill.is-offline::before { background: var(--coral); }
+  .pill.is-syncing { color: var(--amber); border-color: rgba(227, 182, 92, 0.3); }
+  .pill.is-syncing::before { background: var(--amber); animation: blink 1s infinite; }
+  .muted { color: var(--mist-2); font-family: var(--mono); font-size: 9.5px; }
+  .card {
+    margin: 0 0 12px; padding: 18px;
+    border: 1px solid var(--line); border-radius: 20px;
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.028), transparent 46%), var(--panel);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035), 0 18px 50px rgba(0, 0, 0, 0.28);
+  }
+  .eyebrow { margin: 0 0 8px; color: var(--gold-lo); font-family: var(--mono); font-size: 9px; letter-spacing: 0.18em; }
+  .hero-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .seal {
+    padding: 4px 9px; border: 1px solid var(--line); border-radius: 999px;
+    color: var(--gold); font-family: var(--mono); font-size: 9px; letter-spacing: 0.08em;
+  }
+  .total-line { display: flex; align-items: baseline; gap: 6px; margin: 8px 0 4px; }
+  .total { font-family: var(--serif); font-size: 44px; line-height: 1; color: var(--gold-hi); letter-spacing: -0.02em; }
+  .unit { color: var(--mist-2); font-family: var(--mono); font-size: 12px; }
+  .progress-track { height: 8px; margin: 14px 0 8px; border-radius: 999px; background: rgba(255, 255, 255, 0.06); overflow: hidden; }
+  .progress-fill { width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--gold-lo), var(--gold), var(--gold-hi)); transition: width 420ms ease; }
+  .progress-meta { display: flex; justify-content: space-between; gap: 10px; color: var(--mist); font-size: 10.5px; }
+  .milestone-note { margin: 12px 0 0; color: var(--mist); font-size: 12px; line-height: 1.7; }
+  .card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+  .card-head h2 { margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; color: var(--paper); }
+  .card-sub { margin: 3px 0 0; color: var(--mist-2); font-size: 10px; }
+  .summary { margin: 6px 0 12px; font-family: var(--serif); font-size: 18px; line-height: 1.65; color: var(--paper); }
+  .summary.is-warn { color: var(--amber); }
+  .action-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .action-list li {
+    display: flex; align-items: flex-start; gap: 9px;
+    padding: 10px 12px; border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px;
+    background: rgba(255, 255, 255, 0.025); font-size: 12.5px; line-height: 1.6;
+  }
+  .action-list .num {
+    width: 20px; height: 20px; flex: 0 0 20px; display: grid; place-items: center;
+    border-radius: 50%; background: rgba(216, 180, 106, 0.12); color: var(--gold);
+    font-family: var(--mono); font-size: 10px;
+  }
+  .action-list .buy { color: var(--jade); }
+  .action-list .sell { color: var(--coral); }
+  .cash-line { margin: 12px 0 0; color: var(--mist); font-size: 11.5px; line-height: 1.7; }
+  .holdings-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .holding { padding: 11px 10px; border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; background: rgba(255, 255, 255, 0.022); }
+  .holding .label { color: var(--mist-2); font-size: 9.5px; }
+  .holding .value { margin-top: 4px; font-family: var(--mono); font-size: 14px; color: var(--paper); word-break: break-all; }
+  .holding .sub { margin-top: 3px; color: var(--mist-2); font-family: var(--mono); font-size: 8.5px; }
+  .rows { display: grid; gap: 0; margin-top: 6px; }
+  .row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.045); font-size: 11.5px; }
+  .row:last-child { border-bottom: 0; }
+  .row .k { color: var(--mist); }
+  .row .v { color: var(--paper); font-family: var(--mono); font-size: 10.5px; text-align: right; word-break: break-all; }
+  .row .v.good { color: var(--jade); }
+  .row .v.bad { color: var(--coral); }
+  .unlock { border-color: rgba(216, 180, 106, 0.32); }
+  .unlock h2 { margin: 0 0 6px; font-family: var(--serif); font-size: 20px; color: var(--gold-hi); }
+  .unlock p { margin: 0 0 12px; color: var(--mist); font-size: 12px; line-height: 1.7; }
+  .field { display: block; margin-bottom: 10px; }
+  .field span { display: block; margin: 0 0 6px 2px; color: var(--gold-lo); font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; }
+  input[type="password"], input[type="text"] {
+    width: 100%; height: 50px; padding: 0 14px;
+    border: 1px solid rgba(216, 180, 106, 0.2); border-radius: 13px;
+    background: rgba(6, 10, 7, 0.72); color: var(--paper);
+    font-family: var(--mono); font-size: 18px; letter-spacing: 0.2em; outline: none;
+  }
+  input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(216, 180, 106, 0.08); }
+  .check { display: flex; align-items: center; gap: 8px; margin: 4px 0 14px; color: var(--mist); font-size: 11px; cursor: pointer; }
+  .check input { width: 16px; height: 16px; accent-color: var(--gold); }
+  .primary {
+    width: 100%; min-height: 48px; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 13px;
+    background: linear-gradient(180deg, #f5e2b2 0%, #dfb76e 38%, #c29445 100%);
+    color: #211708; font-family: var(--sans); font-size: 13px; font-weight: 700;
+    letter-spacing: 0.06em; cursor: pointer;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 10px 26px rgba(184, 137, 59, 0.16);
+  }
+  .primary:active { transform: translateY(1px); }
+  .primary:disabled { opacity: 0.55; cursor: wait; }
+  .ghost {
+    width: 100%; min-height: 44px; border: 1px solid var(--line); border-radius: 13px;
+    background: rgba(255, 255, 255, 0.025); color: var(--paper);
+    font-family: var(--sans); font-size: 12px; cursor: pointer;
+  }
+  .ghost:active { transform: translateY(1px); }
+  .hint { margin: 10px 0 0; color: var(--mist-2); font-size: 10px; line-height: 1.7; }
+  .hint.is-error { color: var(--coral); }
+  .hint.is-ok { color: var(--jade); }
+  .footer { padding: 16px 2px 0; color: var(--mist-2); font-size: 9.5px; line-height: 1.8; text-align: center; }
+  .footer strong { color: var(--mist); font-weight: 500; }
+  .backdrop { position: fixed; inset: 0; z-index: 40; background: rgba(0, 0, 0, 0.62); backdrop-filter: blur(3px); }
+  .backdrop[hidden] { display: none; }
+  .sheet {
+    position: fixed; left: 50%; bottom: 0; z-index: 50;
+    width: min(560px, 100%); max-height: 86dvh; overflow: auto;
+    padding: 12px 18px calc(22px + env(safe-area-inset-bottom));
+    border: 1px solid var(--line); border-bottom: 0; border-radius: 24px 24px 0 0;
+    background: linear-gradient(180deg, #151f18, #0b100c);
+    transform: translate(-50%, 110%); transition: transform 300ms ease;
+  }
+  .sheet.is-open { transform: translate(-50%, 0); }
+  .sheet-handle { width: 38px; height: 4px; margin: 0 auto 12px; border-radius: 999px; background: rgba(255, 255, 255, 0.14); }
+  .sheet h2 { margin: 0 0 4px; font-family: var(--serif); font-size: 21px; color: var(--gold-hi); }
+  .sheet p { margin: 0 0 12px; color: var(--mist); font-size: 11.5px; line-height: 1.7; }
+  .sheet .row { padding: 8px 0; }
+  .toast {
+    position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom)); z-index: 60;
+    max-width: 88vw; padding: 10px 14px; border: 1px solid var(--line); border-radius: 999px;
+    background: rgba(16, 23, 18, 0.96); color: var(--paper); font-size: 11px;
+    transform: translate(-50%, 20px); opacity: 0; pointer-events: none; transition: 220ms ease;
+  }
+  .toast.is-show { transform: translate(-50%, 0); opacity: 1; }
+  .toast.is-error { border-color: rgba(224, 112, 95, 0.35); color: #ffd6cf; }
+  @keyframes blink { 50% { opacity: 0.35; } }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">30</div>
+      <div>
+        <h1>30U 金库</h1>
+        <p>PRIVATE LEDGER · READ ONLY</p>
       </div>
-      <p class="eyebrow">PRIVATE LEDGER</p>
-      <h1>输入口令解锁</h1>
-      <p class="hint">账本只以密文保存。口令在本地解密，不会上传，也不会写进仓库。</p>
+    </div>
+    <div class="top-actions">
+      <button class="icon-btn" id="refreshButton" type="button" title="手动刷新" aria-label="手动刷新">🔄</button>
+      <button class="icon-btn" id="settingsButton" type="button" title="设置" aria-label="设置">⚙️</button>
+    </div>
+  </header>
+
+  <div class="status-row">
+    <span class="pill" id="syncPill">正在读取…</span>
+    <span class="muted" id="lastSync"></span>
+  </div>
+
+  <main>
+    <section class="card hero" aria-labelledby="heroTitle">
+      <div class="hero-head">
+        <p class="eyebrow" id="heroTitle">策略总资金 · SLEEVE TOTAL</p>
+        <span class="seal" id="stageSeal">--</span>
+      </div>
+      <div class="total-line">
+        <span class="total" id="total">--</span>
+        <span class="unit">U</span>
+      </div>
+      <div class="progress-track" aria-hidden="true"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-meta">
+        <span id="progressText">等待同步</span>
+        <span id="nextMilestone">下一站 --</span>
+      </div>
+      <p class="milestone-note" id="milestoneNote">电脑端生成账本后，这里会显示里程碑进度。</p>
+    </section>
+
+    <section class="card unlock" id="unlockCard" hidden aria-labelledby="unlockTitle">
+      <h2 id="unlockTitle">首次解锁</h2>
+      <p id="unlockCopy">输入电脑端 <code>.sync_pass</code> 里的 4-8 位短码。短码只保存在本机，不会上传。</p>
       <form id="unlockForm" autocomplete="off">
-        <label class="field" for="passphrase">
-          <span>解密口令</span>
-          <input id="passphrase" type="password" autocomplete="current-password" placeholder="输入同步口令" required />
+        <label class="field" for="passInput">
+          <span>4-8 位同步短码</span>
+          <input id="passInput" type="password" inputmode="numeric" maxlength="8" placeholder="888888" autocomplete="current-password" required>
         </label>
-        <label class="remember" for="remember">
-          <input id="remember" type="checkbox" checked />
-          <span>在本机记住，下次自动解锁</span>
+        <label class="check" for="rememberCheck">
+          <input id="rememberCheck" type="checkbox" checked>
+          <span>在本机记住，下次点开自动解锁（推荐）</span>
         </label>
-        <button class="unlock-button" id="unlockButton" type="submit">解锁账本</button>
+        <button class="primary" id="unlockButton" type="submit">解锁并同步云端账本</button>
       </form>
-      <p class="status" id="status" role="status"></p>
-      <p class="foot">AES-256-GCM · PBKDF2 · 100,000 次</p>
-    </main>
-    <script src="./unlock.js" defer></script>
-  </body>
+      <p class="hint" id="unlockHint"></p>
+    </section>
+
+    <section class="card signal" aria-labelledby="signalTitle">
+      <div class="card-head">
+        <div>
+          <p class="eyebrow" id="signalTitle">本周结论 · LATEST SIGNAL</p>
+          <p class="card-sub" id="signalTime">等待云端账本</p>
+        </div>
+      </div>
+      <p class="summary" id="summary">正在读取加密账本…</p>
+      <ol class="action-list" id="actionList">
+        <li><span class="num">1</span><span>等待同步后显示本周操作。</span></li>
+      </ol>
+      <p class="cash-line" id="cashLine">剩余 USDT：--</p>
+    </section>
+
+    <section class="card holdings" aria-labelledby="holdingsTitle">
+      <div class="card-head">
+        <div>
+          <p class="eyebrow" id="holdingsTitle">持仓快照 · HOLDINGS</p>
+          <p class="card-sub">只读；数字来自电脑端最近一次打卡。</p>
+        </div>
+      </div>
+      <div class="holdings-grid">
+        <div class="holding"><div class="label">USDT 现金</div><div class="value" id="usdtValue">--</div><div class="sub">活期理财</div></div>
+        <div class="holding"><div class="label">BTC 市值</div><div class="value" id="btcValue">--</div><div class="sub" id="btcQty">-- BTC</div></div>
+        <div class="holding"><div class="label">PAXG 市值</div><div class="value" id="paxgValue">--</div><div class="sub" id="paxgQty">-- PAXG</div></div>
+      </div>
+    </section>
+
+    <section class="card audit" aria-labelledby="auditTitle">
+      <div class="card-head">
+        <div>
+          <p class="eyebrow" id="auditTitle">对账 · AUDIT</p>
+          <p class="card-sub">时间均为北京时间；只读，不构成投资建议。</p>
+        </div>
+      </div>
+      <div class="rows">
+        <div class="row"><span class="k">电脑生成时间</span><span class="v" id="generatedAt">--</span></div>
+        <div class="row"><span class="k">信号锁定时间</span><span class="v" id="signalLockedAt">--</span></div>
+        <div class="row"><span class="k">行情抓取时间</span><span class="v" id="fetchedAt">--</span></div>
+        <div class="row"><span class="k">风险档位</span><span class="v" id="riskProfile">--</span></div>
+        <div class="row"><span class="k">实时盘口</span><span class="v" id="quotePrices">--</span></div>
+        <div class="row"><span class="k">账本版本</span><span class="v" id="schema">--</span></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>公开页面只含 UI；持仓只以 <strong>salt / iv / ciphertext</strong> 形式经过 GitHub。</p>
+    <p>iPhone：分享 → 添加到主屏幕；Android：菜单 → 安装应用。</p>
+  </footer>
+</div>
+
+<div class="backdrop" id="backdrop" hidden></div>
+<aside class="sheet" id="settingsSheet" aria-labelledby="settingsTitle" aria-hidden="true">
+  <div class="sheet-handle" aria-hidden="true"></div>
+  <h2 id="settingsTitle">同步设置</h2>
+  <p>短码只在本机 <code>localStorage</code> 保存；云端只看到 AES-256-GCM 密文。换手机或改密时才需重新输入。</p>
+  <div class="rows">
+    <div class="row"><span class="k">本机状态</span><span class="v" id="sheetStatus">--</span></div>
+    <div class="row"><span class="k">最近同步</span><span class="v" id="sheetSyncedAt">--</span></div>
+  </div>
+  <div class="rows" style="margin-top:12px">
+    <button class="ghost" id="sheetRefresh" type="button">🔄 手动刷新云端账本</button>
+    <button class="ghost" id="sheetLock" type="button">🔒 锁定本机（下次重新输入短码）</button>
+    <label class="ghost" for="fileInput" style="display:grid;place-items:center;cursor:pointer">📥 从文件导入 encrypted_state.json</label>
+    <input id="fileInput" type="file" accept="application/json,.json" hidden>
+  </div>
+  <p class="hint" id="sheetHint">提示：电脑端双击“双击加密同步到手机.bat”后，这里点刷新即可。</p>
+</aside>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+  "use strict";
+
+  const STATE_URL = "./encrypted_state.json";
+  const KEY_PASS = "s30.pass.v2";
+  const KEY_REMEMBER = "s30.remember.v2";
+  const KEY_STATE = "s30.state.v2";
+  const KEY_SYNCED_AT = "s30.synced_at.v2";
+  const KEY_SESSION_PASS = "s30.session_pass.v2";
+  const PBKDF2_ITERATIONS = 100000;
+
+  const $ = (id) => document.getElementById(id);
+  const el = {
+    refreshButton: $("refreshButton"),
+    settingsButton: $("settingsButton"),
+    syncPill: $("syncPill"),
+    lastSync: $("lastSync"),
+    total: $("total"),
+    stageSeal: $("stageSeal"),
+    progressFill: $("progressFill"),
+    progressText: $("progressText"),
+    nextMilestone: $("nextMilestone"),
+    milestoneNote: $("milestoneNote"),
+    unlockCard: $("unlockCard"),
+    unlockTitle: $("unlockTitle"),
+    unlockCopy: $("unlockCopy"),
+    unlockForm: $("unlockForm"),
+    passInput: $("passInput"),
+    rememberCheck: $("rememberCheck"),
+    unlockButton: $("unlockButton"),
+    unlockHint: $("unlockHint"),
+    summary: $("summary"),
+    signalTime: $("signalTime"),
+    actionList: $("actionList"),
+    cashLine: $("cashLine"),
+    usdtValue: $("usdtValue"),
+    btcValue: $("btcValue"),
+    paxgValue: $("paxgValue"),
+    btcQty: $("btcQty"),
+    paxgQty: $("paxgQty"),
+    generatedAt: $("generatedAt"),
+    signalLockedAt: $("signalLockedAt"),
+    fetchedAt: $("fetchedAt"),
+    riskProfile: $("riskProfile"),
+    quotePrices: $("quotePrices"),
+    schema: $("schema"),
+    backdrop: $("backdrop"),
+    settingsSheet: $("settingsSheet"),
+    sheetStatus: $("sheetStatus"),
+    sheetSyncedAt: $("sheetSyncedAt"),
+    sheetRefresh: $("sheetRefresh"),
+    sheetLock: $("sheetLock"),
+    sheetHint: $("sheetHint"),
+    fileInput: $("fileInput"),
+    toast: $("toast"),
+  };
+
+  let cachedPayload = null;
+  let busy = false;
+  let toastTimer = null;
+
+  function storeGet(key) {
+    try { return window.localStorage.getItem(key); } catch { return null; }
+  }
+  function storeSet(key, value) {
+    try {
+      if (value === null || value === undefined || value === "") window.localStorage.removeItem(key);
+      else window.localStorage.setItem(key, String(value));
+    } catch { /* private mode */ }
+  }
+  function sessionGet(key) {
+    try { return window.sessionStorage.getItem(key); } catch { return null; }
+  }
+  function sessionSet(key, value) {
+    try {
+      if (!value) window.sessionStorage.removeItem(key);
+      else window.sessionStorage.setItem(key, value);
+    } catch { /* ignore */ }
+  }
+  function readJSON(key) {
+    const raw = storeGet(key);
+    if (!raw) return null;
+    try { return JSON.parse(raw); } catch { return null; }
+  }
+
+  function money(value) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "--";
+  }
+  function num(value, digits = 6) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n.toFixed(digits) : "--";
+  }
+  function parseTime(value) {
+    if (!value) return 0;
+    const t = Date.parse(value);
+    return Number.isFinite(t) ? t : 0;
+  }
+  function beijing(value) {
+    const t = parseTime(value);
+    if (!t) return "--";
+    return new Intl.DateTimeFormat("zh-CN", {
+      timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23",
+    }).format(new Date(t));
+  }
+  function shortBeijing(value) {
+    const text = beijing(value);
+    return text.length >= 16 ? text.slice(5, 16) : text;
+  }
+  function profileLabel(p) {
+    return p === "balanced" ? "均衡 25% / 50%" : "保守 15% / 35%";
+  }
+  function setText(node, text) {
+    if (node) node.textContent = text;
+  }
+  function showToast(text, kind = "") {
+    setText(el.toast, text);
+    el.toast.classList.toggle("is-error", kind === "error");
+    el.toast.classList.add("is-show");
+    window.clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(() => el.toast.classList.remove("is-show"), 2800);
+  }
+  function setPill(kind, text) {
+    el.syncPill.className = "pill" + (kind ? ` is-${kind}` : "");
+    setText(el.syncPill, text);
+  }
+  function setBusy(value, label = "正在同步…") {
+    busy = value;
+    el.refreshButton.disabled = value;
+    el.unlockButton.disabled = value;
+    el.sheetRefresh.disabled = value;
+    if (value) setPill("syncing", label);
+  }
+
+  function showUnlock(message = "", title = "首次解锁") {
+    el.unlockCard.hidden = false;
+    el.unlockTitle.textContent = title;
+    setText(el.unlockHint, message);
+    el.unlockHint.className = "hint" + (message ? " is-error" : "");
+    el.unlockCopy.innerHTML = '输入电脑端 <code>.sync_pass</code> 里的 4-8 位短码。短码只保存在本机，不会上传。';
+    window.setTimeout(() => el.passInput.focus({ preventScroll: true }), 180);
+  }
+  function hideUnlock() {
+    el.unlockCard.hidden = true;
+    el.passInput.value = "";
+  }
+
+  function hasPass() {
+    return Boolean((storeGet(KEY_PASS) || "").trim() || (sessionGet(KEY_SESSION_PASS) || "").trim());
+  }
+  function getPass() {
+    return (sessionGet(KEY_SESSION_PASS) || storeGet(KEY_PASS) || "").trim();
+  }
+  function savePass(pass, remember) {
+    sessionSet(KEY_SESSION_PASS, pass);
+    if (remember) {
+      storeSet(KEY_PASS, pass);
+      storeSet(KEY_REMEMBER, "1");
+    } else {
+      storeSet(KEY_PASS, null);
+      storeSet(KEY_REMEMBER, "0");
+    }
+  }
+  function clearPass() {
+    sessionSet(KEY_SESSION_PASS, null);
+    storeSet(KEY_PASS, null);
+  }
+
+  function render(payload, online, syncedAt) {
+    if (!payload || typeof payload !== "object") return;
+    cachedPayload = payload;
+    const holdings = payload.holdings || {};
+    const milestone = payload.milestone || {};
+    const signal = payload.latest_signal || {};
+    const timestamps = payload.timestamps || {};
+    const valuation = payload.valuation || {};
+    const total = Number(payload.sleeve_total ?? (
+      Number(holdings.usdt_cash || 0) + Number(holdings.btc_value || 0) + Number(holdings.paxg_value || 0)
+    ));
+
+    setText(el.total, money(total));
+    const stage = Number(milestone.stage || 1);
+    setText(el.stageSeal, `阶段 ${stage}/4`);
+    setText(el.riskProfile, profileLabel(payload.risk_profile));
+    const progress = Math.max(0, Math.min(100, Number(milestone.progress_pct || 0)));
+    el.progressFill.style.width = `${progress}%`;
+    setText(el.progressText, `${progress.toFixed(1)}% · ${milestone.name || "单核蓄力期"}`);
+    setText(el.nextMilestone, milestone.next_milestone == null ? "全部里程碑已达成" : `下一站 ${money(milestone.next_milestone)} U`);
+    setText(el.milestoneNote, `Top_K=${milestone.top_k ?? 1} · 账户 ${money(total)} U · 风险档 ${profileLabel(payload.risk_profile)}`);
+
+    setText(el.usdtValue, money(holdings.usdt_cash));
+    setText(el.btcValue, money(holdings.btc_value));
+    setText(el.paxgValue, money(holdings.paxg_value));
+    setText(el.btcQty, holdings.btc_qty == null ? "颗粒度未知" : `${num(holdings.btc_qty, 8)} BTC`);
+    setText(el.paxgQty, holdings.paxg_qty == null ? "颗粒度未知" : `${num(holdings.paxg_qty, 8)} PAXG`);
+
+    const summary = signal.summary || "电脑端尚未生成信号。";
+    setText(el.summary, summary);
+    el.summary.classList.toggle("is-warn", /不动|暂停|失败|未知/.test(summary));
+    const actions = Array.isArray(signal.actions) ? signal.actions : [];
+    el.actionList.replaceChildren();
+    if (!actions.length) {
+      const li = document.createElement("li");
+      const numEl = document.createElement("span");
+      numEl.className = "num";
+      numEl.textContent = "✓";
+      const text = document.createElement("span");
+      text.textContent = "本周不动：无需买卖，剩余 USDT 继续放活期。";
+      li.append(numEl, text);
+      el.actionList.append(li);
+    } else {
+      actions.forEach((action, index) => {
+        const li = document.createElement("li");
+        const numEl = document.createElement("span");
+        numEl.className = "num";
+        numEl.textContent = String(index + 1);
+        const text = document.createElement("span");
+        const side = action.side === "SELL" ? "卖出" : "买入";
+        const klass = action.side === "SELL" ? "sell" : "buy";
+        const symbol = action.symbol || action.asset || "";
+        text.innerHTML = `<span class="${klass}">${side}</span> ${symbol} · <strong>${money(action.usdt)} U</strong>`;
+        li.append(numEl, text);
+        el.actionList.append(li);
+      });
+    }
+    setText(el.cashLine, `剩余 USDT：${money(signal.cash_after ?? holdings.usdt_cash)} U（放活期理财）`);
+    setText(el.signalTime, timestamps.signal_locked_at_beijing ? `信号锁定 ${timestamps.signal_locked_at_beijing}` : "等待信号时间");
+
+    setText(el.generatedAt, payload.generated_at_beijing || beijing(payload.generated_at));
+    setText(el.signalLockedAt, timestamps.signal_locked_at_beijing || beijing(timestamps.signal_locked_at));
+    setText(el.fetchedAt, timestamps.fetched_at_beijing || beijing(timestamps.fetched_at));
+    const quotes = valuation.quote_prices || {};
+    const quoteText = [
+      quotes.BTCUSDT ? `BTC ${money(quotes.BTCUSDT)}` : null,
+      quotes.PAXGUSDT ? `PAXG ${money(quotes.PAXGUSDT)}` : null,
+    ].filter(Boolean).join(" · ");
+    setText(el.quotePrices, quoteText || "未提供");
+    setText(el.schema, `schema ${payload.schema ?? "?"} · ${valuation.quote_source || "unknown"}`);
+    setText(el.lastSync, syncedAt ? shortBeijing(syncedAt) : "");
+    setText(el.sheetSyncedAt, syncedAt ? beijing(syncedAt) : "--");
+    setText(el.sheetStatus, online ? "已解锁 · 云端最新" : "已解锁 · 离线缓存");
+    setPill(online ? "online" : "offline", online ? `🟢 云端已同步 (${shortBeijing(syncedAt)})` : `🔴 离线缓存 (${shortBeijing(syncedAt)})`);
+  }
+
+  function base64ToBytes(value) {
+    const binary = window.atob(value);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+  }
+
+  async function decryptEnvelope(envelope, passphrase) {
+    if (!window.crypto?.subtle) throw new Error("此浏览器不支持 WebCrypto，请用 HTTPS 页面打开。");
+    if (!envelope || typeof envelope !== "object") throw new Error("加密包格式不正确。");
+    for (const key of ["salt", "iv", "ciphertext"]) {
+      if (typeof envelope[key] !== "string" || !envelope[key]) throw new Error(`加密包缺少 ${key}。`);
+    }
+    const material = await window.crypto.subtle.importKey(
+      "raw", new TextEncoder().encode(passphrase), "PBKDF2", false, ["deriveKey"]
+    );
+    const key = await window.crypto.subtle.deriveKey(
+      { name: "PBKDF2", salt: base64ToBytes(envelope.salt), iterations: PBKDF2_ITERATIONS, hash: "SHA-256" },
+      material, { name: "AES-GCM", length: 256 }, false, ["decrypt"]
+    );
+    let plaintext;
+    try {
+      plaintext = await window.crypto.subtle.decrypt(
+        { name: "AES-GCM", iv: base64ToBytes(envelope.iv), tagLength: 128 },
+        key, base64ToBytes(envelope.ciphertext)
+      );
+    } catch {
+      const error = new Error("短码不对，或加密包已被改动。");
+      error.code = "decrypt";
+      throw error;
+    }
+    try {
+      return JSON.parse(new TextDecoder().decode(plaintext));
+    } catch {
+      throw new Error("解密后的账本不是有效 JSON。");
+    }
+  }
+
+  function cachePayload(payload, at) {
+    try {
+      storeSet(KEY_STATE, JSON.stringify(payload));
+      storeSet(KEY_SYNCED_AT, at || new Date().toISOString());
+    } catch { /* storage full/private */ }
+  }
+
+  function loadCache() {
+    const payload = readJSON(KEY_STATE);
+    if (!payload) return null;
+    cachedPayload = payload;
+    render(payload, false, storeGet(KEY_SYNCED_AT));
+    return payload;
+  }
+
+  async function syncNow({ silent = false } = {}) {
+    if (busy) return false;
+    const pass = getPass() || el.passInput.value.trim();
+    if (!pass) {
+      showUnlock("");
+      return false;
+    }
+    setBusy(true, silent ? "正在自动同步…" : "正在拉取云端账本…");
+    try {
+      const response = await fetch(`${STATE_URL}?_t=${Date.now()}`, { cache: "no-store" });
+      if (!response.ok) throw new Error(`云端账本 HTTP ${response.status}`);
+      let envelope;
+      try { envelope = await response.json(); } catch { throw new Error("云端返回的不是有效 JSON。"); }
+      const payload = await decryptEnvelope(envelope, pass);
+      const at = payload.updated_at || payload.generated_at || new Date().toISOString();
+      render(payload, true, at);
+      cachePayload(payload, at);
+      savePass(pass, el.rememberCheck.checked || storeGet(KEY_REMEMBER) !== "0");
+      hideUnlock();
+      if (!silent) showToast("🟢 云端账本已同步");
+      return true;
+    } catch (error) {
+      const message = String(error?.message || error);
+      if (error?.code === "decrypt") {
+        clearPass();
+        showUnlock("短码不正确或电脑端已改密。请输入新的 4-8 位短码。", "需要重新解锁");
+        setPill("offline", "🔴 短码失效 · 使用离线缓存");
+      } else if (cachedPayload) {
+        setPill("offline", `🔴 离线缓存 (${shortBeijing(storeGet(KEY_SYNCED_AT))})`);
+        setText(el.sheetStatus, "离线缓存 · 云端暂不可用");
+        if (!silent) showToast(`同步失败：${message}`, "error");
+      } else {
+        setPill("offline", "🔴 同步失败");
+        setText(el.summary, `【无法读取账本】${message}`);
+        el.summary.classList.add("is-warn");
+        if (!silent) showToast(`同步失败：${message}`, "error");
+      }
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function openSheet() {
+    el.backdrop.hidden = false;
+    el.settingsSheet.classList.add("is-open");
+    el.settingsSheet.setAttribute("aria-hidden", "false");
+  }
+  function closeSheet() {
+    el.settingsSheet.classList.remove("is-open");
+    el.settingsSheet.setAttribute("aria-hidden", "true");
+    window.setTimeout(() => { el.backdrop.hidden = true; }, 300);
+  }
+
+  async function importFile(file) {
+    if (!file) return;
+    const pass = getPass() || el.passInput.value.trim();
+    if (!pass) {
+      showUnlock("请先输入短码，再导入文件。");
+      return;
+    }
+    try {
+      const envelope = JSON.parse(await file.text());
+      const payload = await decryptEnvelope(envelope, pass);
+      const at = payload.updated_at || payload.generated_at || new Date().toISOString();
+      render(payload, false, at);
+      cachePayload(payload, at);
+      setPill("offline", `🔴 本地文件 (${shortBeijing(at)})`);
+      closeSheet();
+      showToast("已导入本地加密账本");
+    } catch (error) {
+      showToast(`导入失败：${error.message || error}`, "error");
+    }
+  }
+
+  function bind() {
+    el.refreshButton.addEventListener("click", () => syncNow({ silent: false }));
+    el.sheetRefresh.addEventListener("click", () => { closeSheet(); syncNow({ silent: false }); });
+    el.settingsButton.addEventListener("click", openSheet);
+    el.backdrop.addEventListener("click", closeSheet);
+    el.sheetLock.addEventListener("click", () => {
+      clearPass();
+      storeSet(KEY_STATE, null);
+      storeSet(KEY_SYNCED_AT, null);
+      cachedPayload = null;
+      closeSheet();
+      showUnlock("已锁定本机。下次打开或现在输入短码即可重新解锁。", "已锁定");
+      setPill("offline", "🔴 已锁定 · 等待短码");
+      showToast("已锁定本机");
+    });
+    el.unlockForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const pass = el.passInput.value.trim();
+      if (pass.length < 4 || pass.length > 8) {
+        setText(el.unlockHint, "短码需要 4-8 位。");
+        el.unlockHint.className = "hint is-error";
+        el.passInput.focus();
+        return;
+      }
+      savePass(pass, el.rememberCheck.checked);
+      await syncNow({ silent: false });
+    });
+    el.fileInput.addEventListener("change", () => {
+      const file = el.fileInput.files?.[0];
+      importFile(file);
+      el.fileInput.value = "";
+    });
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible" && hasPass()) syncNow({ silent: true });
+    });
+    window.addEventListener("online", () => {
+      if (hasPass()) syncNow({ silent: true });
+    });
+  }
+
+  function registerServiceWorker() {
+    if (!("serviceWorker" in navigator)) return;
+    if (window.location.protocol !== "https:" && window.location.hostname !== "localhost") return;
+    navigator.serviceWorker.register("./sw.js").catch(() => {});
+  }
+
+  async function boot() {
+    bind();
+    el.rememberCheck.checked = storeGet(KEY_REMEMBER) !== "0";
+    loadCache();
+    registerServiceWorker();
+    if (hasPass()) {
+      setPill("syncing", "🟡 正在自动同步…");
+      await syncNow({ silent: true });
+    } else {
+      showUnlock("");
+      setPill("offline", "🔴 等待首次解锁");
+    }
+    if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
+})();
+</script>
+</body>
 </html>
