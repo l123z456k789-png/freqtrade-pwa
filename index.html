@@ -259,7 +259,7 @@
       <form id="unlockForm" autocomplete="off">
         <label class="field" for="passInput">
           <span>4-8 位同步短码</span>
-          <input id="passInput" type="password" inputmode="numeric" maxlength="8" placeholder="888888" autocomplete="current-password" required>
+          <input id="passInput" type="password" inputmode="text" maxlength="8" placeholder="888888" autocomplete="current-password" required>
         </label>
         <label class="check" for="rememberCheck">
           <input id="rememberCheck" type="checkbox" checked>
@@ -418,7 +418,10 @@
     try {
       if (value === null || value === undefined || value === "") window.localStorage.removeItem(key);
       else window.localStorage.setItem(key, String(value));
-    } catch { /* private mode */ }
+      return true;
+    } catch {
+      return false;
+    }
   }
   function sessionGet(key) {
     try { return window.sessionStorage.getItem(key); } catch { return null; }
@@ -433,6 +436,13 @@
     const raw = storeGet(key);
     if (!raw) return null;
     try { return JSON.parse(raw); } catch { return null; }
+  }
+  function asObject(value) {
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  }
+  function finiteNumber(value, fallback = NaN) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : fallback;
   }
 
   function money(value) {
@@ -467,38 +477,42 @@
     if (node) node.textContent = text;
   }
   function showToast(text, kind = "") {
+    if (!el.toast) return;
     setText(el.toast, text);
     el.toast.classList.toggle("is-error", kind === "error");
     el.toast.classList.add("is-show");
     window.clearTimeout(toastTimer);
-    toastTimer = window.setTimeout(() => el.toast.classList.remove("is-show"), 2800);
+    toastTimer = window.setTimeout(() => el.toast?.classList.remove("is-show"), 2800);
   }
   function setPill(kind, text) {
-    el.syncPill.className = "pill" + (kind ? ` is-${kind}` : "");
+    if (el.syncPill) el.syncPill.className = "pill" + (kind ? ` is-${kind}` : "");
     setText(el.syncPill, text);
   }
   function setBusy(value, label = "正在同步…") {
     busy = value;
-    el.refreshButton.disabled = value;
-    el.unlockButton.disabled = value;
-    el.sheetRefresh.disabled = value;
+    if (el.refreshButton) el.refreshButton.disabled = value;
+    if (el.unlockButton) el.unlockButton.disabled = value;
+    if (el.sheetRefresh) el.sheetRefresh.disabled = value;
+    if (el.sheetLock) el.sheetLock.disabled = value;
     if (value) setPill("syncing", label);
   }
 
   function showUnlock(message = "", title = "首次解锁") {
-    el.unlockCard.hidden = false;
-    el.unlockTitle.textContent = title;
+    if (el.unlockCard) el.unlockCard.hidden = false;
+    if (el.unlockTitle) el.unlockTitle.textContent = title;
     setText(el.unlockHint, message);
-    el.unlockHint.className = "hint" + (message ? " is-error" : "");
-    el.unlockCopy.innerHTML = '输入电脑端 <code>.sync_pass</code> 里的 4-8 位短码。短码只保存在本机，不会上传。';
+    if (el.unlockHint) el.unlockHint.className = "hint" + (message ? " is-error" : "");
+    if (el.unlockCopy) {
+      el.unlockCopy.innerHTML = '输入电脑端 <code>.sync_pass</code> 里的 4-8 位短码。短码只保存在本机，不会上传。';
+    }
     window.setTimeout(() => {
-      el.passInput.focus({ preventScroll: true });
-      el.unlockCard.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.passInput?.focus({ preventScroll: true });
+      el.unlockCard?.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 180);
   }
   function hideUnlock() {
-    el.unlockCard.hidden = true;
-    el.passInput.value = "";
+    if (el.unlockCard) el.unlockCard.hidden = true;
+    if (el.passInput) el.passInput.value = "";
   }
 
   function hasPass() {
@@ -523,26 +537,34 @@
   }
 
   function render(payload, online, syncedAt) {
-    if (!payload || typeof payload !== "object") return;
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) return false;
     cachedPayload = payload;
-    const holdings = payload.holdings || {};
-    const milestone = payload.milestone || {};
-    const signal = payload.latest_signal || {};
-    const timestamps = payload.timestamps || {};
-    const valuation = payload.valuation || {};
-    const total = Number(payload.sleeve_total ?? (
-      Number(holdings.usdt_cash || 0) + Number(holdings.btc_value || 0) +
-      Number(holdings.paxg_value || 0) + Number(holdings.qqqm_value || 0)
-    ));
+    const holdings = asObject(payload.holdings);
+    const milestone = asObject(payload.milestone);
+    const signal = asObject(payload.latest_signal);
+    const timestamps = asObject(payload.timestamps);
+    const valuation = asObject(payload.valuation);
+
+    let total = finiteNumber(payload.sleeve_total, NaN);
+    if (!Number.isFinite(total)) {
+      const parts = [holdings.usdt_cash, holdings.btc_value, holdings.paxg_value, holdings.qqqm_value]
+        .map((value) => finiteNumber(value, NaN));
+      total = parts.some(Number.isFinite)
+        ? parts.reduce((sum, value) => sum + (Number.isFinite(value) ? value : 0), 0)
+        : NaN;
+    }
 
     setText(el.total, money(total));
-    const stage = Number(milestone.stage || 1);
+    const stage = finiteNumber(milestone.stage, 1);
     setText(el.stageSeal, `阶段 ${stage}/4`);
     setText(el.riskProfile, profileLabel(payload.risk_profile));
-    const progress = Math.max(0, Math.min(100, Number(milestone.progress_pct || 0)));
-    el.progressFill.style.width = `${progress}%`;
+    const progress = Math.max(0, Math.min(100, finiteNumber(milestone.progress_pct, 0)));
+    if (el.progressFill) el.progressFill.style.width = `${progress}%`;
     setText(el.progressText, `${progress.toFixed(1)}% · ${milestone.name || "单核蓄力期"}`);
-    setText(el.nextMilestone, milestone.next_milestone == null ? "全部里程碑已达成" : `下一站 ${money(milestone.next_milestone)} U`);
+    const nextMilestone = milestone.next_milestone == null
+      ? NaN
+      : finiteNumber(milestone.next_milestone, NaN);
+    setText(el.nextMilestone, Number.isFinite(nextMilestone) ? `下一站 ${money(nextMilestone)} U` : "全部里程碑已达成");
     setText(el.milestoneNote, `Top_K=${milestone.top_k ?? 1} · 账户 ${money(total)} U · 风险档 ${profileLabel(payload.risk_profile)}`);
 
     setText(el.usdtValue, money(holdings.usdt_cash));
@@ -554,44 +576,72 @@
     setText(el.qqqmQty, holdings.qqqm_qty == null ? "颗粒度未知" : `${num(holdings.qqqm_qty, 8)} QQQM`);
     setText(el.modeLabel, payload.mode_label || "原版币安加密档");
 
-    const summary = signal.summary || "电脑端尚未生成信号。";
+    const summary = typeof signal.summary === "string" && signal.summary ? signal.summary : "电脑端尚未生成信号。";
     setText(el.summary, summary);
-    el.summary.classList.toggle("is-warn", /暂停|失败|未知|无法|错误/.test(summary));
+    if (el.summary) el.summary.classList.toggle("is-warn", /暂停|失败|未知|无法|错误|切换/.test(summary));
 
-    const stops = payload.stop_prices || {};
+    const stops = asObject(payload.stop_prices);
     const stopParts = [
-      stops["BTC-USD"] ? `BTC $${money(stops["BTC-USD"])}` : null,
-      stops["PAXG-USD"] ? `PAXG $${money(stops["PAXG-USD"])}` : null,
-      stops["QQQM-USD"] ? `QQQM $${money(stops["QQQM-USD"])}` : null,
-    ].filter(Boolean);
+      ["BTC-USD", "BTC"],
+      ["PAXG-USD", "PAXG"],
+      ["QQQM-USD", "QQQM"],
+    ].map(([key, label]) => {
+      const value = finiteNumber(stops[key], 0);
+      return value > 0 ? `${label} $${money(value)}` : null;
+    }).filter(Boolean);
     setText(el.stopLine, `🛡️ 闪崩预埋止损价：${stopParts.length ? stopParts.join(" | ") : "等待电脑端生成"}`);
 
-    const actions = Array.isArray(signal.actions) ? signal.actions : [];
-    el.actionList.replaceChildren();
-    if (!actions.length) {
-      const li = document.createElement("li");
-      const numEl = document.createElement("span");
-      numEl.className = "num";
-      numEl.textContent = "✓";
-      const text = document.createElement("span");
-      text.textContent = "本周不动：无需买卖，剩余 USDT 继续放活期。";
-      li.append(numEl, text);
-      el.actionList.append(li);
-    } else {
-      actions.forEach((action, index) => {
+    const actions = Array.isArray(signal.actions)
+      ? signal.actions.filter((action) => action && typeof action === "object")
+      : [];
+    if (el.actionList) {
+      el.actionList.replaceChildren();
+      if (!actions.length) {
         const li = document.createElement("li");
         const numEl = document.createElement("span");
         numEl.className = "num";
-        numEl.textContent = String(index + 1);
+        numEl.textContent = "✓";
         const text = document.createElement("span");
-        const side = action.side === "SELL" ? "卖出" : "买入";
-        const klass = action.side === "SELL" ? "sell" : "buy";
-        const rawSymbol = action.symbol || action.asset || "";
-        const symbol = rawSymbol === "QQQMUSDT" ? "QQQM 纳指100 ETF" : rawSymbol;
-        text.innerHTML = `<span class="${klass}">${side}</span> ${symbol} · <strong>${money(action.usdt)} U</strong>`;
+        text.textContent = signal.status === "mode_mismatch"
+          ? "请先运行一次电脑端顾问，生成当前策略模式的操作信号。"
+          : signal.status === "empty"
+            ? "尚未生成操作信号，请先运行一次电脑端顾问。"
+            : "本周不动：无需买卖，剩余 USDT 继续放活期。";
         li.append(numEl, text);
         el.actionList.append(li);
-      });
+      } else {
+        actions.forEach((action, index) => {
+          const li = document.createElement("li");
+          const numEl = document.createElement("span");
+          numEl.className = "num";
+          numEl.textContent = String(index + 1);
+          const text = document.createElement("span");
+          const isSell = action.side === "SELL";
+          const sideEl = document.createElement("span");
+          sideEl.className = isSell ? "sell" : "buy";
+          sideEl.textContent = isSell ? "卖出" : "买入";
+          const rawSymbol = String(action.symbol || action.asset || "");
+          const symbol = rawSymbol === "QQQMUSDT" ? "QQQM 美股/场外纳指100 ETF" : rawSymbol;
+          const migration = action.migration === true
+            || String(action.tag || "").includes("模式迁移")
+            || String(action.reason || "").includes("模式迁移");
+          if (migration) {
+            const tagEl = document.createElement("span");
+            tagEl.textContent = "【模式迁移清仓】";
+            text.append(tagEl);
+          }
+          const symbolEl = document.createElement("span");
+          symbolEl.textContent = ` ${symbol} · `;
+          const amountEl = document.createElement("strong");
+          const remaining = finiteNumber(action.remaining, 0);
+          amountEl.textContent = isSell && remaining > 0
+            ? `${money(action.usdt)} U（保留 ${money(remaining)} U）`
+            : `${money(action.usdt)} U`;
+          text.append(sideEl, symbolEl, amountEl);
+          li.append(numEl, text);
+          el.actionList.append(li);
+        });
+      }
     }
     setText(el.cashLine, `剩余 USDT：${money(signal.cash_after ?? holdings.usdt_cash)} U（放活期理财）`);
     setText(el.signalTime, timestamps.signal_locked_at_beijing ? `信号锁定 ${timestamps.signal_locked_at_beijing}` : "等待信号时间");
@@ -599,45 +649,61 @@
     setText(el.generatedAt, payload.generated_at_beijing || beijing(payload.generated_at));
     setText(el.signalLockedAt, timestamps.signal_locked_at_beijing || beijing(timestamps.signal_locked_at));
     setText(el.fetchedAt, timestamps.fetched_at_beijing || beijing(timestamps.fetched_at));
-    const quotes = valuation.quote_prices || {};
+    const quotes = asObject(valuation.quote_prices);
     const quoteText = [
-      quotes.BTCUSDT ? `BTC ${money(quotes.BTCUSDT)}` : null,
-      quotes.PAXGUSDT ? `PAXG ${money(quotes.PAXGUSDT)}` : null,
-      quotes.QQQM ? `QQQM ${money(quotes.QQQM)}` : null,
-    ].filter(Boolean).join(" · ");
+      ["BTCUSDT", "BTC"],
+      ["PAXGUSDT", "PAXG"],
+      ["QQQM", "QQQM"],
+    ].map(([key, label]) => {
+      const value = finiteNumber(quotes[key], 0);
+      return value > 0 ? `${label} ${money(value)}` : null;
+    }).filter(Boolean).join(" · ");
     setText(el.quotePrices, quoteText || "未提供");
     setText(el.schema, `schema ${payload.schema ?? "?"} · ${valuation.quote_source || "unknown"}`);
     setText(el.lastSync, syncedAt ? shortBeijing(syncedAt) : "");
     setText(el.sheetSyncedAt, syncedAt ? beijing(syncedAt) : "--");
     setText(el.sheetStatus, online ? "已解锁 · 云端最新" : "已解锁 · 离线缓存");
     setPill(online ? "online" : "offline", online ? `🟢 云端已同步 (${shortBeijing(syncedAt)})` : `🔴 离线缓存 (${shortBeijing(syncedAt)})`);
+    return true;
   }
 
-  function base64ToBytes(value) {
-    const binary = window.atob(value);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-    return bytes;
+  function base64ToBytes(value, label = "base64") {
+    try {
+      const binary = window.atob(String(value));
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+      return bytes;
+    } catch {
+      throw new Error(`加密包 ${label} 字段已损坏。`);
+    }
   }
 
   async function decryptEnvelope(envelope, passphrase) {
     if (!window.crypto?.subtle) throw new Error("此浏览器不支持 WebCrypto，请用 HTTPS 页面打开。");
-    if (!envelope || typeof envelope !== "object") throw new Error("加密包格式不正确。");
+    if (!envelope || typeof envelope !== "object" || Array.isArray(envelope)) {
+      throw new Error("加密包格式不正确。");
+    }
     for (const key of ["salt", "iv", "ciphertext"]) {
       if (typeof envelope[key] !== "string" || !envelope[key]) throw new Error(`加密包缺少 ${key}。`);
     }
+    const salt = base64ToBytes(envelope.salt, "salt");
+    const iv = base64ToBytes(envelope.iv, "iv");
+    const ciphertext = base64ToBytes(envelope.ciphertext, "ciphertext");
+    if (salt.length !== 16) throw new Error("加密包 salt 长度不正确。");
+    if (iv.length !== 12) throw new Error("加密包 iv 长度不正确。");
+    if (ciphertext.length < 16) throw new Error("加密包 ciphertext 长度不正确。");
     const material = await window.crypto.subtle.importKey(
       "raw", new TextEncoder().encode(passphrase), "PBKDF2", false, ["deriveKey"]
     );
     const key = await window.crypto.subtle.deriveKey(
-      { name: "PBKDF2", salt: base64ToBytes(envelope.salt), iterations: PBKDF2_ITERATIONS, hash: "SHA-256" },
+      { name: "PBKDF2", salt, iterations: PBKDF2_ITERATIONS, hash: "SHA-256" },
       material, { name: "AES-GCM", length: 256 }, false, ["decrypt"]
     );
     let plaintext;
     try {
       plaintext = await window.crypto.subtle.decrypt(
-        { name: "AES-GCM", iv: base64ToBytes(envelope.iv), tagLength: 128 },
-        key, base64ToBytes(envelope.ciphertext)
+        { name: "AES-GCM", iv, tagLength: 128 },
+        key, ciphertext
       );
     } catch {
       const error = new Error("短码不对，或加密包已被改动。");
@@ -645,54 +711,140 @@
       throw error;
     }
     try {
-      return JSON.parse(new TextDecoder().decode(plaintext));
+      const payload = JSON.parse(new TextDecoder().decode(plaintext));
+      if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+        throw new Error("账本不是对象。");
+      }
+      return payload;
     } catch {
-      throw new Error("解密后的账本不是有效 JSON。");
+      throw new Error("解密后的账本不是有效 JSON 对象。");
     }
   }
 
   function cachePayload(payload, at) {
     try {
-      storeSet(KEY_STATE, JSON.stringify(payload));
+      const stored = storeSet(KEY_STATE, JSON.stringify(payload));
       storeSet(KEY_SYNCED_AT, at || new Date().toISOString());
-    } catch { /* storage full/private */ }
+      if (!stored) {
+        showToast("本机缓存已满或浏览器禁止存储，本次仅内存可看。", "error");
+      }
+    } catch {
+      showToast("本机缓存写入失败，本次仅内存可看。", "error");
+    }
+  }
+
+  function clearDashboard(message = "已锁定本机，输入短码后解锁。") {
+    setText(el.total, "--");
+    setText(el.stageSeal, "--");
+    if (el.progressFill) el.progressFill.style.width = "0%";
+    setText(el.progressText, "已锁定");
+    setText(el.nextMilestone, "下一站 --");
+    setText(el.milestoneNote, "输入短码后显示账本。");
+    setText(el.usdtValue, "--");
+    setText(el.btcValue, "--");
+    setText(el.paxgValue, "--");
+    setText(el.qqqmValue, "--");
+    setText(el.btcQty, "-- BTC");
+    setText(el.paxgQty, "-- PAXG");
+    setText(el.qqqmQty, "-- QQQM");
+    setText(el.summary, message);
+    el.summary?.classList.remove("is-warn");
+    setText(el.stopLine, "🛡️ 闪崩预埋止损价：已锁定");
+    setText(el.cashLine, "剩余 USDT：--");
+    setText(el.signalTime, "等待解锁");
+    setText(el.generatedAt, "--");
+    setText(el.signalLockedAt, "--");
+    setText(el.fetchedAt, "--");
+    setText(el.riskProfile, "--");
+    setText(el.modeLabel, "--");
+    setText(el.quotePrices, "--");
+    setText(el.schema, "--");
+    setText(el.lastSync, "");
+    setText(el.sheetSyncedAt, "--");
+    setText(el.sheetStatus, "已锁定");
+    el.actionList?.replaceChildren();
+    if (el.actionList) {
+      const li = document.createElement("li");
+      const numEl = document.createElement("span");
+      numEl.className = "num";
+      numEl.textContent = "🔒";
+      const text = document.createElement("span");
+      text.textContent = "账本已锁定；输入短码后重新显示。";
+      li.append(numEl, text);
+      el.actionList.append(li);
+    }
   }
 
   function loadCache() {
     const payload = readJSON(KEY_STATE);
-    if (!payload) return null;
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      storeSet(KEY_STATE, null);
+      return null;
+    }
     cachedPayload = payload;
-    render(payload, false, storeGet(KEY_SYNCED_AT));
+    const syncedAt = storeGet(KEY_SYNCED_AT)
+      || payload.updated_at
+      || payload.generated_at
+      || "";
+    try {
+      render(payload, false, syncedAt);
+    } catch (error) {
+      cachedPayload = null;
+      storeSet(KEY_STATE, null);
+      setPill("offline", "🔴 本地缓存损坏");
+      setText(el.summary, `【本地缓存损坏】${error?.message || error}，请联网重新同步。`);
+      return null;
+    }
+    const cachedAt = parseTime(payload.updated_at || payload.generated_at || storeGet(KEY_SYNCED_AT));
+    if (cachedAt && Date.now() - cachedAt > 14 * 24 * 60 * 60 * 1000) {
+      showToast("本地缓存已超过 14 天，请联网刷新云端账本。", "error");
+    }
     return payload;
   }
 
   async function syncNow({ silent = false } = {}) {
     if (busy) return false;
-    const pass = getPass() || el.passInput.value.trim();
+    const pass = getPass() || (el.passInput?.value || "").trim();
     if (!pass) {
       showUnlock("");
       return false;
     }
     setBusy(true, silent ? "正在自动同步…" : "正在拉取云端账本…");
+    const controller = typeof AbortController === "function" ? new AbortController() : null;
+    const timer = controller
+      ? window.setTimeout(() => controller.abort(), 8000)
+      : 0;
     try {
-      const response = await fetch(`${STATE_URL}?_t=${Date.now()}`, { cache: "no-store" });
+      const options = { cache: "no-store" };
+      if (controller) options.signal = controller.signal;
+      const response = await fetch(`${STATE_URL}?_t=${Date.now()}`, options);
       if (!response.ok) throw new Error(`云端账本 HTTP ${response.status}`);
       let envelope;
       try { envelope = await response.json(); } catch { throw new Error("云端返回的不是有效 JSON。"); }
       const payload = await decryptEnvelope(envelope, pass);
       const at = payload.updated_at || payload.generated_at || new Date().toISOString();
-      render(payload, true, at);
+      if (!render(payload, true, at)) throw new Error("云端账本字段格式不正确。");
       cachePayload(payload, at);
-      savePass(pass, el.rememberCheck.checked || storeGet(KEY_REMEMBER) !== "0");
+      const remember = el.rememberCheck
+        ? Boolean(el.rememberCheck.checked)
+        : storeGet(KEY_REMEMBER) !== "0";
+      savePass(pass, remember);
       hideUnlock();
       if (!silent) showToast("🟢 云端账本已同步");
       return true;
     } catch (error) {
-      const message = String(error?.message || error);
+      const message = error?.name === "AbortError"
+        ? "网络超时（8 秒），已保留离线缓存。"
+        : String(error?.message || error);
       if (error?.code === "decrypt") {
         clearPass();
+        storeSet(KEY_STATE, null);
+        storeSet(KEY_SYNCED_AT, null);
+        cachedPayload = null;
+        if (el.passInput) el.passInput.value = "";
+        clearDashboard("短码不正确或电脑端已改密，账本已隐藏。请输入新短码解锁。");
         showUnlock("短码不正确或电脑端已改密。请输入新的 4-8 位短码。", "需要重新解锁");
-        setPill("offline", "🔴 短码失效 · 使用离线缓存");
+        setPill("offline", "🔴 短码失效 · 已隐藏账本");
       } else if (cachedPayload) {
         setPill("offline", `🔴 离线缓存 (${shortBeijing(storeGet(KEY_SYNCED_AT))})`);
         setText(el.sheetStatus, "离线缓存 · 云端暂不可用");
@@ -700,84 +852,97 @@
       } else {
         setPill("offline", "🔴 同步失败");
         setText(el.summary, `【无法读取账本】${message}`);
-        el.summary.classList.add("is-warn");
+        el.summary?.classList.add("is-warn");
         if (!silent) showToast(`同步失败：${message}`, "error");
       }
       return false;
     } finally {
+      window.clearTimeout(timer);
       setBusy(false);
     }
   }
 
   function openSheet() {
-    el.backdrop.hidden = false;
-    el.settingsSheet.classList.add("is-open");
-    el.settingsSheet.setAttribute("aria-hidden", "false");
+    if (el.backdrop) el.backdrop.hidden = false;
+    el.settingsSheet?.classList.add("is-open");
+    el.settingsSheet?.setAttribute("aria-hidden", "false");
   }
   function closeSheet() {
-    el.settingsSheet.classList.remove("is-open");
-    el.settingsSheet.setAttribute("aria-hidden", "true");
-    window.setTimeout(() => { el.backdrop.hidden = true; }, 300);
+    el.settingsSheet?.classList.remove("is-open");
+    el.settingsSheet?.setAttribute("aria-hidden", "true");
+    window.setTimeout(() => { if (el.backdrop) el.backdrop.hidden = true; }, 300);
   }
 
   async function importFile(file) {
     if (!file) return;
-    const pass = getPass() || el.passInput.value.trim();
+    if (file.size > 2 * 1024 * 1024) {
+      showToast("导入失败：文件超过 2MB。", "error");
+      return;
+    }
+    const pass = getPass() || (el.passInput?.value || "").trim();
     if (!pass) {
       showUnlock("请先输入短码，再导入文件。");
       return;
     }
     try {
-      const envelope = JSON.parse(await file.text());
-      const payload = await decryptEnvelope(envelope, pass);
+      let raw;
+      try { raw = JSON.parse(await file.text()); } catch { throw new Error("文件不是有效 JSON。"); }
+      const payload = await decryptEnvelope(raw, pass);
       const at = payload.updated_at || payload.generated_at || new Date().toISOString();
-      render(payload, false, at);
+      if (!render(payload, false, at)) throw new Error("账本字段格式不正确。");
       cachePayload(payload, at);
       setPill("offline", `🔴 本地文件 (${shortBeijing(at)})`);
       closeSheet();
       showToast("已导入本地加密账本");
     } catch (error) {
-      showToast(`导入失败：${error.message || error}`, "error");
+      showToast(`导入失败：${error?.message || error}`, "error");
     }
   }
 
   function bind() {
-    el.refreshButton.addEventListener("click", () => syncNow({ silent: false }));
-    el.sheetRefresh.addEventListener("click", () => { closeSheet(); syncNow({ silent: false }); });
-    el.settingsButton.addEventListener("click", openSheet);
-    el.backdrop.addEventListener("click", closeSheet);
-    el.sheetLock.addEventListener("click", () => {
+    el.refreshButton?.addEventListener("click", () => syncNow({ silent: false }));
+    el.sheetRefresh?.addEventListener("click", () => { closeSheet(); syncNow({ silent: false }); });
+    el.settingsButton?.addEventListener("click", openSheet);
+    el.backdrop?.addEventListener("click", closeSheet);
+    el.sheetLock?.addEventListener("click", () => {
+      if (busy) {
+        showToast("正在同步，请稍后再锁定。", "error");
+        return;
+      }
       clearPass();
       storeSet(KEY_STATE, null);
       storeSet(KEY_SYNCED_AT, null);
       cachedPayload = null;
+      clearDashboard();
       closeSheet();
       showUnlock("已锁定本机。下次打开或现在输入短码即可重新解锁。", "已锁定");
       setPill("offline", "🔴 已锁定 · 等待短码");
       showToast("已锁定本机");
     });
-    el.unlockForm.addEventListener("submit", async (event) => {
+    el.unlockForm?.addEventListener("submit", async (event) => {
       event.preventDefault();
-      const pass = el.passInput.value.trim();
+      const pass = (el.passInput?.value || "").trim();
       if (pass.length < 4 || pass.length > 8) {
         setText(el.unlockHint, "短码需要 4-8 位。");
-        el.unlockHint.className = "hint is-error";
-        el.passInput.focus();
+        if (el.unlockHint) el.unlockHint.className = "hint is-error";
+        el.passInput?.focus();
         return;
       }
-      savePass(pass, el.rememberCheck.checked);
+      savePass(pass, Boolean(el.rememberCheck?.checked));
       await syncNow({ silent: false });
     });
-    el.fileInput.addEventListener("change", () => {
+    el.fileInput?.addEventListener("change", () => {
       const file = el.fileInput.files?.[0];
       importFile(file);
       el.fileInput.value = "";
     });
     document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible" && hasPass()) syncNow({ silent: true });
+      if (document.visibilityState === "visible" && hasPass()) {
+        syncNow({ silent: true }).catch(() => {});
+      }
     });
     window.addEventListener("online", () => {
-      if (hasPass()) syncNow({ silent: true });
+      if (hasPass()) syncNow({ silent: true }).catch(() => {});
     });
   }
 
@@ -789,13 +954,23 @@
 
   async function boot() {
     bind();
-    el.rememberCheck.checked = storeGet(KEY_REMEMBER) !== "0";
-    loadCache();
+    if (el.rememberCheck) el.rememberCheck.checked = storeGet(KEY_REMEMBER) !== "0";
     registerServiceWorker();
     if (hasPass()) {
+      try {
+        loadCache();
+      } catch (error) {
+        storeSet(KEY_STATE, null);
+        cachedPayload = null;
+        showToast(`本地缓存读取失败：${error?.message || error}`, "error");
+      }
       setPill("syncing", "🟡 正在自动同步…");
       await syncNow({ silent: true });
     } else {
+      storeSet(KEY_STATE, null);
+      storeSet(KEY_SYNCED_AT, null);
+      cachedPayload = null;
+      clearDashboard("等待首次解锁；输入短码后显示账本。");
       showUnlock("");
       setPill("offline", "🔴 等待首次解锁");
     }
